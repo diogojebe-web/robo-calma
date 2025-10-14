@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../../firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import Sidebar from '../../components/Sidebar';
 
 export default function ChatPage() {
@@ -32,6 +32,7 @@ export default function ChatPage() {
     });
     setActiveChatId(newChatRef.id);
     setMessages([]);
+    setIsSidebarOpen(false); // Fecha a sidebar no celular ao criar
   };
 
   const handleSelectChat = (chatId) => {
@@ -58,9 +59,8 @@ export default function ChatPage() {
 
   useEffect(scrollToBottom, [messages, isLoading]);
 
-  // AQUI ESTÁ A LINHA CORRIGIDA!
   useEffect(() => {
-    if (!loading && !user) { // Corrigido de 'user' para !user
+    if (!loading && !user) {
       router.push('/');
     }
   }, [user, loading, router]);
@@ -80,7 +80,7 @@ export default function ChatPage() {
     try {
       if (messages.length === 0) {
         const chatRef = doc(db, 'users', user.uid, 'chats', activeChatId);
-        await updateDoc(chatRef, { title: userMessageText.substring(0, 30) + '...' });
+        await updateDoc(chatRef, { title: userMessageText.substring(0, 35) + (userMessageText.length > 35 ? '...' : '') });
       }
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -114,7 +114,8 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen">
+    // ESTRUTURA CORRIGIDA PARA MOBILE
+    <div className="flex h-screen w-full overflow-hidden">
       <Sidebar 
         isOpen={isSidebarOpen} 
         setIsOpen={setIsSidebarOpen} 
@@ -123,7 +124,7 @@ export default function ChatPage() {
         activeChatId={activeChatId}
       />
       <div className="flex flex-1 flex-col bg-blue-50">
-        <header className="bg-white shadow-md p-4 flex items-center justify-between flex-shrink-0">
+        <header className="bg-white shadow-md p-4 flex items-center justify-between flex-shrink-0 z-10">
           <div className="flex items-center">
             <button onClick={() => setIsSidebarOpen(true)} className="mr-4 p-1 text-gray-600 md:hidden">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
