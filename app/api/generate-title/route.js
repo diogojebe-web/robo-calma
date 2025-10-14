@@ -5,7 +5,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(req) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); // Usando o modelo que você descobriu
+    // AQUI ESTÁ A CORREÇÃO DEFINITIVA: Usando o modelo EXATO que você descobriu que funciona!
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const data = await req.json();
     const firstMessage = data.message;
