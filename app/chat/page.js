@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState([
-    { role: 'bot', text: 'Olá! Eu sou o Robô C.A.L.M.A., seu assistente de bem-estar. Como você está se sentindo hoje?' }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -21,16 +28,13 @@ export default function ChatPage() {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userInput }),
       });
 
       const data = await response.json();
       const botMessage = { role: 'bot', text: data.text };
       setMessages(prevMessages => [...prevMessages, botMessage]);
-
     } catch (error) {
       console.error("Erro ao comunicar com a API:", error);
       const errorMessage = { role: 'bot', text: 'Desculpe, estou com um problema para me conectar. Tente novamente mais tarde.' };
@@ -42,11 +46,24 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-blue-50">
-      <header className="bg-white shadow-md p-4 flex items-center">
+      <header className="bg-white shadow-md p-4 flex items-center flex-shrink-0">
         <h1 className="text-xl font-bold text-blue-800">Robô C.A.L.M.A.</h1>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* MENSAGEM DE BOAS-VINDAS (APENAS SE NÃO HOUVER CONVERSA) */}
+        {messages.length === 0 && !isLoading && (
+          <div className="flex flex-col justify-center items-center h-full text-center p-4">
+            <h2 className="font-serif text-3xl font-bold text-blue-800">
+              Robô C.A.L.M.A.
+            </h2>
+            <p className="mt-2 text-lg text-gray-600">
+              Seu assistente de bem-estar. Como posso te ajudar hoje?
+            </p>
+          </div>
+        )}
+
+        {/* MENSAGENS DO CHAT */}
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'}`}>
@@ -54,16 +71,18 @@ export default function ChatPage() {
             </div>
           </div>
         ))}
+
         {isLoading && (
           <div className="flex justify-start">
-             <div className="max-w-xs lg:max-w-md bg-white rounded-lg p-3 shadow">
-                <p className="text-sm text-gray-500 animate-pulse">Digitando...</p>
-              </div>
+            <div className="max-w-xs lg:max-w-md bg-white rounded-lg p-3 shadow">
+              <p className="text-sm text-gray-500 animate-pulse">Digitando...</p>
+            </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </main>
 
-      <footer className="bg-white p-4 shadow-inner">
+      <footer className="bg-white p-4 shadow-inner flex-shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-center">
           <input
             type="text"
