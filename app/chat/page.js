@@ -33,7 +33,7 @@ export default function ChatPage() {
     setActiveChatId(newChatRef.id);
     setMessages([]);
     setIsSidebarOpen(false);
-    return newChatRef.id; // Retorna o ID do novo chat
+    return newChatRef.id;
   };
 
   const handleSelectChat = (chatId) => {
@@ -69,31 +69,22 @@ export default function ChatPage() {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!userInput.trim() || !user) return;
-
     let currentChatId = activeChatId;
-
-    // CORREÇÃO PRINCIPAL: Se não houver chat ativo, cria um novo ANTES de enviar.
     if (!currentChatId) {
       const newChatId = await handleNewChat();
       if (newChatId) {
         currentChatId = newChatId;
-      } else {
-        return; // Sai se não conseguir criar o chat
-      }
+      } else { return; }
     }
-
     const userMessageText = userInput;
     setUserInput('');
     setIsLoading(true);
-    
     const messagesRef = collection(db, 'users', user.uid, 'chats', currentChatId, 'messages');
-    
     await addDoc(messagesRef, { 
       role: 'user', 
       text: userMessageText,
       timestamp: serverTimestamp() 
     });
-
     try {
       const isFirstMessage = messages.length === 0;
       if (isFirstMessage) {
@@ -101,14 +92,12 @@ export default function ChatPage() {
         const newTitle = userMessageText.substring(0, 35) + (userMessageText.length > 35 ? '...' : '');
         await updateDoc(chatRef, { title: newTitle });
       }
-
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessageText }),
       });
       const data = await response.json();
-      
       await addDoc(messagesRef, { 
         role: 'bot', 
         text: data.text,
@@ -135,8 +124,7 @@ export default function ChatPage() {
   }
 
   return (
-    // CORREÇÃO ESTRUTURAL PARA LAYOUT MOBILE
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full bg-gray-100">
       <Sidebar 
         isOpen={isSidebarOpen} 
         setIsOpen={setIsSidebarOpen} 
@@ -144,7 +132,7 @@ export default function ChatPage() {
         handleSelectChat={handleSelectChat}
         activeChatId={activeChatId}
       />
-      <div className="flex flex-1 flex-col bg-blue-50">
+      <div className="flex flex-1 flex-col h-full">
         <header className="bg-white shadow-md p-4 flex items-center justify-between flex-shrink-0 z-10">
           <div className="flex items-center">
             <button onClick={() => setIsSidebarOpen(true)} className="mr-4 p-1 text-gray-600 md:hidden">
@@ -156,16 +144,11 @@ export default function ChatPage() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>
           </button>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* MENSAGEM DE BOAS-VINDAS RESTAURADA E MELHORADA */}
+        <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-blue-50">
           {!activeChatId && messages.length === 0 && !isLoading && (
             <div className="flex flex-col justify-center items-center h-full text-center p-4">
-              <h2 className="font-serif text-3xl font-bold text-blue-800">
-                Robô C.A.L.M.A.
-              </h2>
-              <p className="mt-2 text-lg text-gray-600">
-                Seu assistente de bem-estar. Como posso te ajudar hoje?
-              </p>
+              <h2 className="font-serif text-3xl font-bold text-blue-800">Robô C.A.L.M.A.</h2>
+              <p className="mt-2 text-lg text-gray-600">Seu assistente de bem-estar. Como posso te ajudar hoje?</p>
             </div>
           )}
           {messages.map((msg, index) => (
@@ -180,10 +163,9 @@ export default function ChatPage() {
         </main>
         <footer className="bg-white p-4 shadow-inner flex-shrink-0">
           <form onSubmit={handleSendMessage} className="flex items-center">
-            {/* CORREÇÃO: Input agora está sempre habilitado */}
             <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isLoading} />
             <button type="submit" className="ml-4 rounded-full bg-blue-600 p-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300" disabled={isLoading}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6"><path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
             </button>
           </form>
         </footer>
