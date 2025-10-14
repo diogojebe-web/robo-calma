@@ -6,6 +6,10 @@ import { auth, db } from "../firebase";
 import { useEffect, useState, useRef } from "react";
 import ContextMenu from './ContextMenu';
 
+// Link do WhatsApp (Brasil = 55). Número: 21 98817-0913
+const WHATSAPP_LINK =
+  "https://wa.me/5521988170913?text=Ol%C3%A1%2C%20vim%20do%20Rob%C3%B4%20C.A.L.M.A.%20e%20quero%20saber%20mais%20sobre%20o%20M%C3%A9todo%20C.A.L.M.A.";
+
 export default function Sidebar({
   isOpen,
   setIsOpen,
@@ -56,9 +60,7 @@ export default function Sidebar({
   const confirmDelete = async () => {
     if (!menuData.chat) return;
     const ok = window.confirm(`Tem certeza que deseja excluir a conversa "${menuData.chat.title}"? Esta ação não pode ser desfeita.`);
-    if (ok) {
-      await handleDeleteChat(menuData.chat.id);
-    }
+    if (ok) await handleDeleteChat(menuData.chat.id);
     closeMenu();
   };
 
@@ -76,7 +78,6 @@ export default function Sidebar({
   const handleTouchEnd = (e, chat) => {
     clearTimeout(longPressTimer.current);
     if (!isLongPress.current) {
-      // toque curto = abrir conversa
       if (!menuData.isOpen && editingChatId !== chat.id) {
         handleSelectChat(chat.id);
         setIsOpen(false);
@@ -98,6 +99,13 @@ export default function Sidebar({
     }
   };
 
+  const openWhatsapp = () => {
+    if (typeof window !== 'undefined') window.open(WHATSAPP_LINK, '_blank', 'noopener,noreferrer');
+    setIsOpen(false);
+  };
+
+  const selectedId = menuData.chat?.id;
+
   return (
     <>
       <div
@@ -106,49 +114,78 @@ export default function Sidebar({
         md:relative md:translate-x-0 md:w-64`}
         onContextMenu={(e) => e.preventDefault()}
       >
+        {/* Topo: botão Nova conversa + fechar */}
         <div className="flex items-center justify-between mb-4">
-          <button onClick={handleNewChat} className="flex-1 rounded-lg border border-gray-600 p-2 text-left text-sm hover:bg-gray-700">
+          <button
+            onClick={handleNewChat}
+            className="flex-1 rounded-lg border border-gray-600 p-2 text-left text-sm hover:bg-gray-700"
+          >
             + Nova Conversa
           </button>
-          <button onClick={() => setIsOpen(false)} className="ml-2 p-1 text-white md:hidden">
+          <button onClick={() => setIsOpen(false)} className="ml-2 p-1 text-white md:hidden" aria-label="Fechar menu">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
+        {/* CTA: Conheça o Método C.A.L.M.A. */}
+        <div className="mb-4 rounded-lg bg-blue-900/30 border border-blue-700 p-3">
+          <p className="text-sm font-semibold text-blue-200 mb-1">
+            Conheça o <span className="text-white">Método C.A.L.M.A.</span>
+          </p>
+          <p className="text-xs text-blue-100/90 mb-2">
+            Controle a ansiedade e a compulsão. Emagreça com leveza.
+          </p>
+          <button
+            onClick={openWhatsapp}
+            className="w-full text-center text-sm font-medium rounded-md bg-green-600 hover:bg-green-700 px-3 py-2"
+          >
+            Falar no WhatsApp
+          </button>
+        </div>
+
+        {/* Histórico */}
         <div className="flex-1 overflow-y-auto">
           <p className="text-xs text-gray-400">Histórico de Conversas</p>
           <ul className="mt-2 space-y-2">
-            {chats.map(chat => (
-              <li
-                key={chat.id}
-                onClick={() => handleClickItem(chat)}               // desktop: clique normal
-                onContextMenu={(e) => handleContextMenu(e, chat)}   // desktop: clique direito
-                onTouchStart={(e) => handleTouchStart(e, chat)}     // mobile: toque longo
-                onTouchEnd={(e) => handleTouchEnd(e, chat)}         // mobile: toque curto
-                onTouchMove={() => clearTimeout(longPressTimer.current)} // cancela se arrastar
-                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
-              >
-                {editingChatId === chat.id ? (
-                  <input
-                    type="text"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    onBlur={() => submitRename(chat.id)}
-                    onKeyDown={(e) => e.key === 'Enter' && submitRename(chat.id)}
-                    className="w-full bg-transparent text-white outline-none"
-                    autoFocus
-                  />
-                ) : (
-                  <span className="truncate cursor-pointer" title={chat.title || 'Nova Conversa...'}>
-                    {chat.title || 'Nova Conversa...'}
-                  </span>
-                )}
-              </li>
-            ))}
+            {chats.map(chat => {
+              const isSelectedByMenu = selectedId === chat.id;
+              return (
+                <li
+                  key={chat.id}
+                  onClick={() => handleClickItem(chat)}               // desktop: clique normal
+                  onContextMenu={(e) => handleContextMenu(e, chat)}   // desktop: clique direito
+                  onTouchStart={(e) => handleTouchStart(e, chat)}     // mobile: toque longo
+                  onTouchEnd={(e) => handleTouchEnd(e, chat)}         // mobile: toque curto
+                  onTouchMove={() => clearTimeout(longPressTimer.current)} // cancela se arrastar
+                  className={[
+                    "flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none transition",
+                    activeChatId === chat.id && !editingChatId ? "bg-gray-700" : "",
+                    isSelectedByMenu ? "ring-2 ring-blue-400 bg-gray-700/80 scale-[.99]" : ""
+                  ].join(" ")}
+                >
+                  {editingChatId === chat.id ? (
+                    <input
+                      type="text"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      onBlur={() => submitRename(chat.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && submitRename(chat.id)}
+                      className="w-full bg-transparent text-white outline-none"
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="truncate cursor-pointer" title={chat.title || 'Nova Conversa...'}>
+                      {chat.title || 'Nova Conversa...'}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
 
+      {/* MENU com overlay e “pílula” do título */}
       <ContextMenu
         isOpen={menuData.isOpen}
         x={menuData.x}
@@ -156,6 +193,7 @@ export default function Sidebar({
         onClose={closeMenu}
         onRename={startEditing}
         onDelete={confirmDelete}
+        title={menuData.chat?.title || "Nova Conversa..."}
       />
     </>
   );
