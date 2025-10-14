@@ -4,7 +4,7 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "../firebase";
 import { useEffect, useState, useRef } from "react";
-import ContextMenu from './ContextMenu'; // Importamos nossa nova peça de LEGO
+import ContextMenu from './ContextMenu';
 
 export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelectChat, activeChatId, handleRenameChat, handleDeleteChat }) {
   const [user] = useAuthState(auth);
@@ -12,7 +12,6 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
   const [editingChatId, setEditingChatId] = useState(null);
   const [newTitle, setNewTitle] = useState("");
   
-  // Novo estado para controlar o menu de contexto
   const [menuData, setMenuData] = useState({ isOpen: false, x: 0, y: 0, chat: null });
   const longPressTimer = useRef();
 
@@ -28,13 +27,14 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
   }, [user]);
   
   const openMenu = (e, chat) => {
-    e.preventDefault(); // Previne o menu padrão do navegador
+    e.preventDefault();
     setMenuData({ isOpen: true, x: e.pageX, y: e.pageY, chat: chat });
   };
   
   const closeMenu = () => setMenuData({ isOpen: false, x: 0, y: 0, chat: null });
 
   const startEditing = () => {
+    if (!menuData.chat) return;
     setEditingChatId(menuData.chat.id);
     setNewTitle(menuData.chat.title);
     closeMenu();
@@ -48,17 +48,20 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
   };
   
   const confirmDelete = () => {
+    if (!menuData.chat) return;
     if(window.confirm(`Tem certeza que deseja excluir a conversa "${menuData.chat.title}"? Esta ação não pode ser desfeita.`)){
       handleDeleteChat(menuData.chat.id);
     }
     closeMenu();
   };
   
-  // Lógica para o clique longo/curto
   const handlePressStart = (e, chat) => {
-    longPressTimer.current = setTimeout(() => {
-      openMenu(e, chat);
-    }, 500); // 500ms = meio segundo para ser um clique longo
+    // Apenas para eventos de toque (celular)
+    if (e.type === 'touchstart') {
+        longPressTimer.current = setTimeout(() => {
+            openMenu(e.touches[0], chat); // Usamos e.touches[0] para a posição do dedo
+        }, 500);
+    }
   };
   
   const handlePressEnd = () => {
@@ -93,12 +96,13 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
                         setIsOpen(false);
                     }
                 }}
-                onContextMenu={(e) => openMenu(e, chat)} // Para o botão direito no computador
-                onTouchStart={(e) => handlePressStart(e, chat)} // Para o clique longo no celular
-                onTouchEnd={handlePressEnd}
-                onMouseDown={(e) => handlePressStart(e, chat)} // Para o clique longo no computador
-                onMouseUp={handlePressEnd}
-                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
+                onContextMenu={(e) => openMenu(e, chat)} // Botão direito no computador
+                onTouchStart={(e) => handlePressStart(e, chat)} // Começa a contar o clique longo no celular
+                onTouchEnd={handlePressEnd} // Cancela o contador se o dedo sair antes
+                onTouchMove={handlePressEnd} // Cancela se o dedo arrastar (para permitir rolagem)
+                // AQUI ESTÁ A CORREÇÃO MÁGICA:
+                // select-none diz ao navegador para NÃO abrir o menu de copiar/colar
+                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
               >
                 {editingChatId === chat.id ? (
                   <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onBlur={() => submitRename(chat.id)} onKeyDown={(e) => e.key === 'Enter' && submitRename(chat.id)} className="w-full bg-transparent text-white outline-none" autoFocus />
@@ -111,7 +115,6 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
         </div>
       </div>
       
-      {/* Nosso novo menu de contexto, invisível até ser chamado */}
       <ContextMenu 
         isOpen={menuData.isOpen}
         x={menuData.x}
