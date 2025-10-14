@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../../firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import {
+  collection, addDoc, serverTimestamp,
+  query, orderBy, onSnapshot,
+  doc, updateDoc, getDocs, writeBatch
+} from 'firebase/firestore';
 import Sidebar from '../../components/Sidebar';
 
 export default function ChatPage() {
@@ -17,7 +21,6 @@ export default function ChatPage() {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  
   const [windowHeight, setWindowHeight] = useState(0);
 
   useEffect(() => {
@@ -32,11 +35,12 @@ export default function ChatPage() {
     router.push('/');
   };
 
+  // NOVA CONVERSA
   const handleNewChat = async () => {
     if (!user) return null;
     const chatsRef = collection(db, 'users', user.uid, 'chats');
     const newChatRef = await addDoc(chatsRef, {
-      title: 'Nova Conversa',
+      title: 'Nova Conversa...',
       createdAt: serverTimestamp()
     });
     setActiveChatId(newChatRef.id);
@@ -45,41 +49,48 @@ export default function ChatPage() {
     return newChatRef.id;
   };
 
+  // SELECIONAR CONVERSA
   const handleSelectChat = (chatId) => {
     setActiveChatId(chatId);
   };
-  
-  const handleRenameChat = async (chatId, newTitle) => {
-    if (!user || !chatId || !newTitle) return;
-    const chatRef = doc(db, 'users', user.uid, 'chats', chatId);
-    await updateDoc(chatRef, { title: newTitle });
-  };
-  
-  // FUNÇÃO DE EXCLUIR CORRIGIDA E ROBUSTA
-  const handleDeleteChat = async (chatId) => {
-    if (!user || !chatId) return;
-    try {
-      // Apaga todas as mensagens da subcoleção em um "batch"
-      const messagesRef = collection(db, 'users', user.uid, 'chats', chatId, 'messages');
-      const messagesQuery = query(messagesRef);
-      onSnapshot(messagesQuery, (snapshot) => {
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(doc => {
-          batch.delete(doc.ref);
-        });
-        batch.commit();
-      });
 
-      // Depois apaga o chat principal
+  // RENOMEAR CONVERSA (⚠️ novo)
+  const handleRenameChat = async (chatId, newTitle) => {
+    if (!user || !newTitle?.trim()) return;
+    try {
       const chatRef = doc(db, 'users', user.uid, 'chats', chatId);
-      await deleteDoc(chatRef);
-      
-      if(activeChatId === chatId){
+      await updateDoc(chatRef, { title: newTitle.trim() });
+      // Sidebar escuta via onSnapshot e atualiza sozinho.
+    } catch (e) {
+      console.error('Erro ao renomear chat:', e);
+      alert('Não consegui renomear. Tente novamente.');
+    }
+  };
+
+  // EXCLUIR CONVERSA (⚠️ novo)
+  const handleDeleteChat = async (chatId) => {
+    if (!user) return;
+    try {
+      const batch = writeBatch(db);
+
+      // apaga mensagens
+      const msgsRef = collection(db, 'users', user.uid, 'chats', chatId, 'messages');
+      const msgsSnap = await getDocs(msgsRef);
+      msgsSnap.forEach((d) => batch.delete(d.ref));
+
+      // apaga o próprio chat
+      const chatRef = doc(db, 'users', user.uid, 'chats', chatId);
+      batch.delete(chatRef);
+
+      await batch.commit();
+
+      if (activeChatId === chatId) {
         setActiveChatId(null);
+        setMessages([]);
       }
-    } catch (error) {
-      console.error("Erro ao excluir chat:", error);
-      alert("Ocorreu um erro ao tentar excluir a conversa.");
+    } catch (e) {
+      console.error('Erro ao excluir chat:', e);
+      alert('Não consegui excluir. Tente novamente.');
     }
   };
 
@@ -87,6 +98,7 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Ouve mensagens do chat ativo
   useEffect(() => {
     if (user && activeChatId) {
       const messagesRef = collection(db, 'users', user.uid, 'chats', activeChatId, 'messages');
@@ -109,37 +121,45 @@ export default function ChatPage() {
     }
   }, [user, loading, router]);
 
+  // Enviar mensagem
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!userInput.trim() || !user) return;
+
     let currentChatId = activeChatId;
     if (!currentChatId) {
       const newChatId = await handleNewChat();
-      if (newChatId) { currentChatId = newChatId; } 
-      else { return; }
+      if (newChatId) currentChatId = newChatId;
+      else return;
     }
+
     const userMessageText = userInput;
     const currentMessages = messages;
     setUserInput('');
     setIsLoading(true);
-    
+
     const messagesRef = collection(db, 'users', user.uid, 'chats', currentChatId, 'messages');
     await addDoc(messagesRef, { role: 'user', text: userMessageText, timestamp: serverTimestamp() });
-    
+
     try {
+      // Gera título na 1ª mensagem
       if (currentMessages.length === 0) {
         fetch('/api/generate-title', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: userMessageText }),
-        }).then(res => res.json()).then(data => {
-          if (data.title) {
-            const chatRef = doc(db, 'users', user.uid, 'chats', currentChatId);
-            updateDoc(chatRef, { title: data.title });
-          }
-        }).catch(error => console.error("Erro ao gerar título:", error));
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.title) {
+              const chatRef = doc(db, 'users', user.uid, 'chats', currentChatId);
+              updateDoc(chatRef, { title: data.title });
+            }
+          })
+          .catch(error => console.error("Erro ao gerar título:", error));
       }
-      
+
+      // Chamada da sua API de chat (mantida)
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,15 +185,17 @@ export default function ChatPage() {
 
   return (
     <div className="flex w-full bg-gray-100" style={{ height: windowHeight || '100vh' }}>
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen} 
+      <Sidebar
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
         handleNewChat={handleNewChat}
         handleSelectChat={handleSelectChat}
         activeChatId={activeChatId}
+        /* ⚠️ Passando as novas funções */
         handleRenameChat={handleRenameChat}
         handleDeleteChat={handleDeleteChat}
       />
+
       <div className="flex flex-1 flex-col h-full">
         <header className="bg-white shadow-md p-4 flex items-center justify-between flex-shrink-0 z-10">
           <div className="flex items-center">
@@ -186,17 +208,52 @@ export default function ChatPage() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>
           </button>
         </header>
+
         <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-blue-50">
-          {/* ... (resto do código da main, que permanece o mesmo) ... */}
-          {!activeChatId ? ( <div className="flex flex-col justify-center items-center h-full text-center p-4"><h2 className="font-serif text-3xl font-bold text-blue-800">Selecione ou crie uma nova conversa</h2><p className="mt-2 text-lg text-gray-600">Seu histórico aparecerá na barra lateral.</p></div> ) : messages.length === 0 && !isLoading ? ( <div className="flex flex-col justify-center items-center h-full text-center p-4"><h2 className="font-serif text-3xl font-bold text-blue-800">Robô C.A.L.M.A.</h2><p className="mt-2 text-lg text-gray-600">Seu assistente de bem-estar. Como posso te ajudar hoje?</p></div> ) : ( messages.map((msg, index) => ( <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}><p className="text-sm whitespace-pre-wrap">{msg.text}</p></div></div> )) )}
-          {isLoading && (<div className="flex justify-start"><div className="max-w-xs lg:max-w-md bg-white rounded-lg p-3 shadow"><p className="text-sm text-gray-500 animate-pulse">Digitando...</p></div></div>)}
+          {!activeChatId && messages.length === 0 && !isLoading && (
+            <div className="flex flex-col justify-center items-center h-full text-center p-4">
+              <h2 className="font-serif text-3xl font-bold text-blue-800">Robô C.A.L.M.A.</h2>
+              <p className="mt-2 text-lg text-gray-600">Seu assistente de bem-estar. Como posso te ajudar hoje?</p>
+            </div>
+          )}
+
+          {messages.map((msg, index) => (
+            <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}>
+                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+              </div>
+            </div>
+          ))}
+
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="max-w-xs lg:max-w-md bg-white rounded-lg p-3 shadow">
+                <p className="text-sm text-gray-500 animate-pulse">Digitando...</p>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </main>
+
         <footer className="bg-white p-4 shadow-inner flex-shrink-0">
           <form onSubmit={handleSendMessage} className="flex items-center">
-            <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isLoading} />
-            <button type="submit" className="ml-4 rounded-full bg-blue-600 p-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300" disabled={isLoading}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6"><path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
+            <input
+              type="text"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."}
+              className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              className="ml-4 rounded-full bg-blue-600 p-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300"
+              disabled={isLoading}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+                <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+              </svg>
             </button>
           </form>
         </footer>

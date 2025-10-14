@@ -6,14 +6,25 @@ import { auth, db } from "../firebase";
 import { useEffect, useState, useRef } from "react";
 import ContextMenu from './ContextMenu';
 
-export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelectChat, activeChatId, handleRenameChat, handleDeleteChat }) {
+export default function Sidebar({
+  isOpen,
+  setIsOpen,
+  handleNewChat,
+  handleSelectChat,
+  activeChatId,
+  handleRenameChat,
+  handleDeleteChat
+}) {
   const [user] = useAuthState(auth);
   const [chats, setChats] = useState([]);
   const [editingChatId, setEditingChatId] = useState(null);
   const [newTitle, setNewTitle] = useState("");
-  
-  const [menuData, setMenuData] = useState({ isOpen: false, x: 0, y: 0, chat: null });
 
+  const [menuData, setMenuData] = useState({ isOpen: false, x: 0, y: 0, chat: null });
+  const longPressTimer = useRef();
+  const isLongPress = useRef(false);
+
+  // carrega lista de chats
   useEffect(() => {
     if (user) {
       const chatsRef = collection(db, 'users', user.uid, 'chats');
@@ -24,46 +35,76 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
       return () => unsubscribe();
     }
   }, [user]);
-  
+
   const closeMenu = () => setMenuData({ isOpen: false, x: 0, y: 0, chat: null });
 
   const startEditing = () => {
     if (!menuData.chat) return;
     setEditingChatId(menuData.chat.id);
-    setNewTitle(menuData.chat.title);
+    setNewTitle(menuData.chat.title || "");
     closeMenu();
   };
 
-  // FUNÇÃO CORRIGIDA PARA ENVIAR E FECHAR A EDIÇÃO
-  const submitRename = (chatId) => {
-    if (newTitle.trim() && newTitle.trim() !== chats.find(c => c.id === chatId)?.title) {
-      handleRenameChat(chatId, newTitle.trim());
-    }
+  const submitRename = async (chatId) => {
+    const title = newTitle.trim();
     setEditingChatId(null);
+    if (!title) return;
+    await handleRenameChat(chatId, title);
+    setNewTitle("");
   };
-  
-  const confirmDelete = () => {
+
+  const confirmDelete = async () => {
     if (!menuData.chat) return;
-    if(window.confirm(`Tem certeza que deseja excluir a conversa "${menuData.chat.title}"? Esta ação não pode ser desfeita.`)){
-      handleDeleteChat(menuData.chat.id);
+    const ok = window.confirm(`Tem certeza que deseja excluir a conversa "${menuData.chat.title}"? Esta ação não pode ser desfeita.`);
+    if (ok) {
+      await handleDeleteChat(menuData.chat.id);
     }
     closeMenu();
   };
-  
+
+  // toque longo (mobile)
+  const handleTouchStart = (e, chat) => {
+    isLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      e.preventDefault();
+      isLongPress.current = true;
+      const position = e.touches?.[0];
+      setMenuData({ isOpen: true, x: position?.pageX || 0, y: position?.pageY || 0, chat });
+    }, 500);
+  };
+
+  const handleTouchEnd = (e, chat) => {
+    clearTimeout(longPressTimer.current);
+    if (!isLongPress.current) {
+      // toque curto = abrir conversa
+      if (!menuData.isOpen && editingChatId !== chat.id) {
+        handleSelectChat(chat.id);
+        setIsOpen(false);
+      }
+    }
+  };
+
+  // clique direito (desktop)
   const handleContextMenu = (e, chat) => {
     e.preventDefault();
-    e.stopPropagation();
-    const position = e.touches ? e.touches[0] : e;
-    setMenuData({ isOpen: true, x: position.pageX, y: position.pageY, chat: chat });
+    setMenuData({ isOpen: true, x: e.pageX, y: e.pageY, chat });
   };
 
+  // clique normal (desktop)
+  const handleClickItem = (chat) => {
+    if (!menuData.isOpen && editingChatId !== chat.id) {
+      handleSelectChat(chat.id);
+      setIsOpen(false);
+    }
+  };
 
   return (
     <>
-      <div 
-        className={`fixed inset-y-0 left-0 z-30 flex h-full flex-col bg-gray-800 text-white w-72 p-4 transform transition-transform duration-300 ease-in-out 
+      <div
+        className={`sidebar-history fixed inset-y-0 left-0 z-30 flex h-full flex-col bg-gray-800 text-white w-72 p-4 transform transition-transform duration-300 ease-in-out 
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:relative md:translate-x-0 md:w-64`}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <div className="flex items-center justify-between mb-4">
           <button onClick={handleNewChat} className="flex-1 rounded-lg border border-gray-600 p-2 text-left text-sm hover:bg-gray-700">
@@ -73,43 +114,42 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto">
           <p className="text-xs text-gray-400">Histórico de Conversas</p>
           <ul className="mt-2 space-y-2">
             {chats.map(chat => (
-              <li 
-                key={chat.id} 
-                onClick={() => {
-                  if (editingChatId === chat.id) return; // Impede o clique enquanto edita
-                  if (!menuData.isOpen) {
-                    handleSelectChat(chat.id);
-                    setIsOpen(false);
-                  }
-                }}
-                onContextMenu={(e) => handleContextMenu(e, chat)}
+              <li
+                key={chat.id}
+                onClick={() => handleClickItem(chat)}               // desktop: clique normal
+                onContextMenu={(e) => handleContextMenu(e, chat)}   // desktop: clique direito
+                onTouchStart={(e) => handleTouchStart(e, chat)}     // mobile: toque longo
+                onTouchEnd={(e) => handleTouchEnd(e, chat)}         // mobile: toque curto
+                onTouchMove={() => clearTimeout(longPressTimer.current)} // cancela se arrastar
                 className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
               >
                 {editingChatId === chat.id ? (
-                  <input 
-                    type="text" 
-                    value={newTitle} 
-                    onChange={(e) => setNewTitle(e.target.value)} 
-                    onBlur={() => submitRename(chat.id)} // Salva e fecha ao clicar fora
-                    onKeyDown={(e) => { if (e.key === 'Enter') submitRename(chat.id) }} // Salva e fecha com Enter
-                    className="w-full bg-gray-700 text-white outline-none rounded p-1" 
-                    autoFocus 
+                  <input
+                    type="text"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    onBlur={() => submitRename(chat.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && submitRename(chat.id)}
+                    className="w-full bg-transparent text-white outline-none"
+                    autoFocus
                   />
                 ) : (
-                  <span className="truncate cursor-pointer" title={chat.title || 'Nova Conversa...'}>{chat.title || 'Nova Conversa...'}</span>
+                  <span className="truncate cursor-pointer" title={chat.title || 'Nova Conversa...'}>
+                    {chat.title || 'Nova Conversa...'}
+                  </span>
                 )}
               </li>
             ))}
           </ul>
         </div>
       </div>
-      
-      <ContextMenu 
+
+      <ContextMenu
         isOpen={menuData.isOpen}
         x={menuData.x}
         y={menuData.y}

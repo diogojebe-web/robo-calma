@@ -2,11 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 
-// Este é o nosso menu flutuante
 export default function ContextMenu({ isOpen, x, y, onClose, onRename, onDelete }) {
   const menuRef = useRef(null);
 
-  // Efeito para fechar o menu se o usuário clicar fora dele
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -15,9 +13,11 @@ export default function ContextMenu({ isOpen, x, y, onClose, onRename, onDelete 
     };
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside, { passive: true });
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [isOpen, onClose]);
 
@@ -28,6 +28,7 @@ export default function ContextMenu({ isOpen, x, y, onClose, onRename, onDelete 
       ref={menuRef}
       className="absolute z-40 bg-gray-900 text-white rounded-md shadow-lg p-2 w-40"
       style={{ top: y, left: x }}
+      onContextMenu={(e) => e.preventDefault()} // evita menu nativo
     >
       <ul>
         <li onClick={onRename} className="p-2 text-sm rounded-md hover:bg-gray-700 cursor-pointer">
