@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Texto sempre escuro nos inputs */
+input, textarea { color: #111827; }
+
+/* Placeholder legível */
+::placeholder { color: #6b7280; opacity: 1; }
+
+/* Safari/iOS: corrige cor quando usa preenchimento automático */
+input:-webkit-autofill {
+  -webkit-text-fill-color: #111827 !important;
+  transition: background-color 9999s ease-in-out 0s !important;
+}

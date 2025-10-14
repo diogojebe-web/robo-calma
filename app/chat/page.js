@@ -243,7 +243,10 @@ export default function ChatPage() {
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."}
-              className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 rounded-full border border-gray-300 px-4 py-2
+           bg-white text-gray-900 placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-blue-500"
+
               disabled={isLoading}
             />
             <button
