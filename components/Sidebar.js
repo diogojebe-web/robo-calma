@@ -13,8 +13,6 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
   const [newTitle, setNewTitle] = useState("");
   
   const [menuData, setMenuData] = useState({ isOpen: false, x: 0, y: 0, chat: null });
-  const longPressTimer = useRef();
-  const isLongPress = useRef(false);
 
   useEffect(() => {
     if (user) {
@@ -28,7 +26,6 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
   }, [user]);
   
   const openMenu = (e, chat) => {
-    e.preventDefault();
     setMenuData({ isOpen: true, x: e.pageX, y: e.pageY, chat: chat });
   };
   
@@ -56,15 +53,28 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
     closeMenu();
   };
 
-  
-  
-  const handleContextMenu = (e, chat) => {
-  e.preventDefault(); // O SINAL DE "PARE" PARA O NAVEGADOR.
-  e.stopPropagation();
+  // NOVAS FUNÇÕES CORRIGIDAS
+  const longPressTimer = useRef();
+  const isLongPress = useRef(false);
 
-  const position = e.touches ? e.touches[0] : e;
-  setMenuData({ isOpen: true, x: position.pageX, y: position.pageY, chat: chat });
-};
+  const handlePressStart = (e, chat) => {
+    isLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      const position = e.touches ? e.touches[0] : e;
+      openMenu(position, chat);
+    }, 500); // Meio segundo
+  };
+
+  const handlePressEnd = (e, chat) => {
+    clearTimeout(longPressTimer.current);
+    if (!isLongPress.current) {
+      if (!menuData.isOpen && editingChatId !== chat.id) {
+        handleSelectChat(chat.id);
+        setIsOpen(false);
+      }
+    }
+  };
 
   return (
     <>
@@ -87,16 +97,14 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
           <ul className="mt-2 space-y-2">
             {chats.map(chat => (
               <li 
-                key={chat.id} 
-                onClick={() => {
-  if (editingChatId !== chat.id && !menuData.isOpen) {
-    handleSelectChat(chat.id);
-    setIsOpen(false);
-  }
-}}
-// onContextMenu AGORA É A ÚNICA INSTRUÇÃO NECESSÁRIA PARA O MENU
-onContextMenu={(e) => handleContextMenu(e, chat)}
-                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
+                key={chat.id}
+                // NOVOS EVENTOS CORRIGIDOS
+                onMouseDown={(e) => handlePressStart(e, chat)}
+                onMouseUp={(e) => handlePressEnd(e, chat)}
+                onTouchStart={(e) => handlePressStart(e, chat)}
+                onTouchEnd={(e) => handlePressEnd(e, chat)}
+                onContextMenu={(e) => e.preventDefault()} // Previne o menu do clique direito
+                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
               >
                 {editingChatId === chat.id ? (
                   <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onBlur={() => submitRename(chat.id)} onKeyDown={(e) => e.key === 'Enter' && submitRename(chat.id)} className="w-full bg-transparent text-white outline-none" autoFocus />
