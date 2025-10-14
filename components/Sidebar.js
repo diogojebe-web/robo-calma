@@ -13,6 +13,8 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
   const [newTitle, setNewTitle] = useState("");
   
   const [menuData, setMenuData] = useState({ isOpen: false, x: 0, y: 0, chat: null });
+  const longPressTimer = useRef();
+  const isLongPress = useRef(false);
 
   useEffect(() => {
     if (user) {
@@ -48,14 +50,35 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
     }
     closeMenu();
   };
-  
+
+  // LÓGICA FINAL E CORRETA PARA O CLIQUE LONGO E CURTO
+  const handleTouchStart = (e, chat) => {
+    isLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      e.preventDefault(); // O SINAL DE "PARE", NO MOMENTO CERTO
+      isLongPress.current = true;
+      const position = e.touches[0];
+      setMenuData({ isOpen: true, x: position.pageX, y: position.pageY, chat: chat });
+    }, 500); // Meio segundo
+  };
+
+  const handleTouchEnd = (e, chat) => {
+    clearTimeout(longPressTimer.current);
+    // Dispara a ação de clique normal apenas se NÃO foi um clique longo
+    if (!isLongPress.current) {
+        if (!menuData.isOpen && editingChatId !== chat.id) {
+            handleSelectChat(chat.id);
+            setIsOpen(false);
+        }
+    }
+  };
+
+  // FUNÇÃO SEPARADA APENAS PARA O CLIQUE DIREITO DO MOUSE
   const handleContextMenu = (e, chat) => {
     e.preventDefault();
-    e.stopPropagation();
-    
-    const position = e.touches ? e.touches[0] : e;
-    setMenuData({ isOpen: true, x: position.pageX, y: position.pageY, chat: chat });
+    setMenuData({ isOpen: true, x: e.pageX, y: e.pageY, chat: chat });
   };
+
 
   return (
     <>
@@ -79,14 +102,13 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
             {chats.map(chat => (
               <li 
                 key={chat.id} 
-                onClick={() => {
-                  if (editingChatId !== chat.id && !menuData.isOpen) {
-                    handleSelectChat(chat.id);
-                    setIsOpen(false);
-                  }
-                }}
-                onContextMenu={(e) => handleContextMenu(e, chat)}
-                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
+                // EVENTOS SEPARADOS E CORRETOS
+                onClick={(e) => handleTouchEnd(e, chat)} // Simula um clique normal no desktop
+                onContextMenu={(e) => handleContextMenu(e, chat)} // Para clique direito
+                onTouchStart={(e) => handleTouchStart(e, chat)} // Para toque longo
+                onTouchEnd={(e) => handleTouchEnd(e, chat)} // Para toque curto
+                onTouchMove={() => clearTimeout(longPressTimer.current)} // Cancela se o dedo arrastar
+                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
               >
                 {editingChatId === chat.id ? (
                   <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onBlur={() => submitRename(chat.id)} onKeyDown={(e) => e.key === 'Enter' && submitRename(chat.id)} className="w-full bg-transparent text-white outline-none" autoFocus />
