@@ -85,58 +85,38 @@ export default function ChatPage() {
       else { return; }
     }
     const userMessageText = userInput;
+    const currentMessages = messages; // Guarda o histórico atual
     setUserInput('');
     setIsLoading(true);
-
-    // AQUI ESTÁ A CORREÇÃO LÓGICA
-    // Verificamos se é a primeira mensagem ANTES de salvar qualquer coisa
-    const isFirstMessage = messages.length === 0;
     
     const messagesRef = collection(db, 'users', user.uid, 'chats', currentChatId, 'messages');
-    
-    // Agora salvamos a mensagem do usuário
-    await addDoc(messagesRef, { 
-      role: 'user', 
-      text: userMessageText,
-      timestamp: serverTimestamp() 
-    });
+    await addDoc(messagesRef, { role: 'user', text: userMessageText, timestamp: serverTimestamp() });
     
     try {
-      // Usamos a nossa verificação segura para chamar o especialista
-      if (isFirstMessage) {
+      if (currentMessages.length === 0) {
         fetch('/api/generate-title', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: userMessageText }),
-        })
-        .then(res => res.json())
-        .then(data => {
+        }).then(res => res.json()).then(data => {
           if (data.title) {
             const chatRef = doc(db, 'users', user.uid, 'chats', currentChatId);
             updateDoc(chatRef, { title: data.title });
           }
-        })
-        .catch(error => console.error("Erro ao gerar título:", error));
+        }).catch(error => console.error("Erro ao gerar título:", error));
       }
       
+      // AQUI ESTÁ A MUDANÇA: ENVIAMOS O HISTÓRICO JUNTO
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessageText }),
+        body: JSON.stringify({ history: currentMessages, newMessage: userMessageText }),
       });
       const data = await response.json();
-      await addDoc(messagesRef, { 
-        role: 'bot', 
-        text: data.text,
-        timestamp: serverTimestamp() 
-      });
+      await addDoc(messagesRef, { role: 'bot', text: data.text, timestamp: serverTimestamp() });
     } catch (error) {
       console.error("Erro na comunicação com a API:", error);
-      await addDoc(messagesRef, { 
-        role: 'bot', 
-        text: 'Desculpe, estou com um problema. Tente novamente mais tarde.',
-        timestamp: serverTimestamp()
-      });
+      await addDoc(messagesRef, { role: 'bot', text: 'Desculpe, estou com um problema. Tente novamente mais tarde.', timestamp: serverTimestamp() });
     } finally {
       setIsLoading(false);
     }
@@ -192,7 +172,7 @@ export default function ChatPage() {
           <form onSubmit={handleSendMessage} className="flex items-center">
             <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isLoading} />
             <button type="submit" className="ml-4 rounded-full bg-blue-600 p-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300" disabled={isLoading}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6"><path d="M3.478 2.404a.75.75 0 0 0-.926._941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
             </button>
           </form>
         </footer>

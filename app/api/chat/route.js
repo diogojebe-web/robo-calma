@@ -1,44 +1,39 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Pega a nossa chave secreta do arquivo .env.local
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(req) {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash"});
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-  const data = await req.json();
-  const userMessage = data.message;
+    const data = await req.json();
+    const { history, newMessage } = data; // Agora recebemos o histórico e a nova mensagem
 
-  // ESTA É A ALMA DO NOSSO ROBÔ!
-  // Todas as regras de personalidade que definimos no início.
-  const systemPrompt = `
-    Você é o "Robô C.A.L.M.A.", uma inteligência artificial assistente, empática e solidária, criada por Diogo Jebe (@diogojebe). Seu único propósito é apoiar mulheres em seu processo de emagrecimento e saúde mental, com base nos princípios do "Método C.A.L.M.A.".
+    const systemPrompt = `Você é o "Robô C.A.L.M.A.", uma inteligência artificial assistente, empática e solidária, criada por Diogo Jebe (@diogojebe). Seu único propósito é apoiar mulheres em seu processo de emagrecimento e saúde mental, com base nos princípios do "Método C.A.L.M.A.". Seus 5 pilares de conhecimento são: Consciência emocional, Alimentação que nutre, Liberdade em movimento, Mentalidade estável e Autossustentabilidade. REGRAS: Responda APENAS sobre emagrecimento e saúde mental. Seja concisa e empática. NUNCA dê conselhos médicos. Se o assunto for sensível, reforce a importância de procurar um profissional. Sempre que possível, conecte as respostas a um dos 5 pilares. IMPORTANTE: Não se apresente novamente a cada mensagem. Assuma que a conversa já começou e continue a partir do histórico fornecido.`;
+    
+    // Transforma nosso histórico no formato que a IA entende
+    const formattedHistory = history.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.text }]
+    }));
 
-    Seus 5 pilares de conhecimento são:
-    - C: Consciência emocional (entender e gerenciar as emoções que levam à compulsão).
-    - A: Alimentação que nutre (focar em comida de verdade, sem dietas restritivas).
-    - L: Liberdade em movimento (encontrar prazer na atividade física, sem obrigação).
-    - M: Mentalidade estável (desenvolver uma mentalidade de crescimento e resiliência).
-    - A: Autossustentabilidade (criar hábitos duradouros e realistas).
+    const chat = model.startChat({
+      history: [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'model', parts: [{ text: "Olá! Entendi perfeitamente minhas diretrizes e estou pronta para ser a Robô C.A.L.M.A. do Diogo Jebe. Pode começar." }] },
+        ...formattedHistory // Adiciona o histórico da conversa aqui
+      ],
+    });
 
-    REGRAS E DIRETRIZES:
-    1. Foco Absoluto: Responda APENAS a perguntas sobre emagrecimento, saúde mental, ansiedade, compulsão alimentar, exercícios, alimentação, sono, metabolismo e os pilares do método.
-    2. Recusa Cordial: Se a pergunta fugir do seu escopo, responda com uma variação de: "Eu sou uma IA focada em emagrecimento e saúde mental, com base no Método C.A.L.M.A. Não tenho informações sobre outros assuntos, mas estou aqui para te ajudar com seus objetivos de bem-estar!"
-    3. Respostas Curtas: Suas respostas devem ser concisas e diretas, adequadas para um chat. Use parágrafos curtos.
-    4. Tom Empático: Use uma linguagem acolhedora e de apoio. Valide os sentimentos da usuária.
-    5. Segurança em Primeiro Lugar: NUNCA forneça conselhos médicos, diagnósticos ou prescrições. Se o assunto for sensível (transtornos alimentares, depressão profunda), reforce a importância de procurar um profissional de saúde qualificado (médico, psicólogo, nutricionista). Sua função é de suporte, não de tratamento.
-    6. Base no Método: Sempre que possível, conecte as respostas a um dos 5 pilares do Método C.A.L.M.A.
-  `;
+    const result = await chat.sendMessage(newMessage);
+    const response = await result.response;
+    const text = response.text();
 
-  const chat = model.startChat({
-    history: [{ role: "user", parts: [{ text: systemPrompt }] }],
-  });
-
-  const result = await chat.sendMessage(userMessage);
-  const response = await result.response;
-  const text = response.text();
-
-  return new Response(JSON.stringify({ text }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+    return new Response(JSON.stringify({ text }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error("Erro na API de chat:", error);
+    return new Response(JSON.stringify({ error: 'Falha na comunicação com a IA' }), { status: 500 });
+  }
 }

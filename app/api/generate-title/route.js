@@ -16,7 +16,7 @@ export async function POST(req) {
     }
 
     // A INSTRUÇÃO SECRETA PARA O ESPECIALISTA EM TÍTULOS
-    const prompt = `Gere um título curto e descritivo em português, com no máximo 4 palavras, para uma conversa que começa com a seguinte pergunta: "${firstMessage}"`;
+    const prompt = `Sua única tarefa é gerar um título em português para uma conversa que começa com a seguinte pergunta: "${firstMessage}". O título deve ter entre 2 e 5 palavras. Responda APENAS com o título, sem aspas, sem numeração e sem nenhum texto introdutório.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
