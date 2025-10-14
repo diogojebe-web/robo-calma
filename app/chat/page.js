@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth, db } from '../../firebase'; // ATENÇÃO AQUI
+import { auth, db } from '../../firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 
 export default function ChatPage() {
@@ -18,64 +18,53 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Efeito para carregar o histórico de mensagens do Firestore
   useEffect(() => {
     if (user) {
       const messagesRef = collection(db, 'chats', user.uid, 'messages');
       const q = query(messagesRef, orderBy('timestamp'));
-
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const history = querySnapshot.docs.map(doc => doc.data());
         setMessages(history);
       });
-
-      return () => unsubscribe(); // Limpa o listener ao sair da página
+      return () => unsubscribe();
     }
   }, [user]);
 
-  // Efeito para rolar para o final
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  // Efeito para proteger a página: se não estiver logado, volta para o login
   useEffect(() => {
     if (!loading && !user) {
       router.push('/');
     }
   }, [user, loading, router]);
 
-
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!userInput.trim() || !user) return;
-
     const userMessage = { 
       role: 'user', 
       text: userInput,
       timestamp: serverTimestamp() 
     };
-
     const messagesRef = collection(db, 'chats', user.uid, 'messages');
-    await addDoc(messagesRef, userMessage); // Salva a mensagem do usuário no Firestore
-
+    await addDoc(messagesRef, userMessage);
     setUserInput('');
     setIsLoading(true);
-
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userInput }),
       });
-
       const data = await response.json();
       const botMessage = { 
         role: 'bot', 
         text: data.text,
         timestamp: serverTimestamp() 
       };
-      await addDoc(messagesRef, botMessage); // Salva a mensagem do robô no Firestore
+      await addDoc(messagesRef, botMessage);
     } catch (error) {
       console.error("Erro ao comunicar com a API:", error);
       const errorMessage = { 
@@ -102,7 +91,6 @@ export default function ChatPage() {
       <header className="bg-white shadow-md p-4 flex items-center flex-shrink-0">
         <h1 className="text-xl font-bold text-blue-800">Robô C.A.L.M.A.</h1>
       </header>
-
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && !isLoading && (
           <div className="flex flex-col justify-center items-center h-full text-center p-4">
@@ -110,19 +98,17 @@ export default function ChatPage() {
             <p className="mt-2 text-lg text-gray-600">Seu assistente de bem-estar. Como posso te ajudar hoje?</p>
           </div>
         )}
-
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'}`}>
+            {/* AQUI ESTÁ A CORREÇÃO: trocamos bg-blue-500 por bg-blue-600 */}
+            <div className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}>
               <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
             </div>
           </div>
         ))}
-        
         {isLoading && (<div className="flex justify-start"><div className="max-w-xs lg:max-w-md bg-white rounded-lg p-3 shadow"><p className="text-sm text-gray-500 animate-pulse">Digitando...</p></div></div>)}
         <div ref={messagesEndRef} />
       </main>
-
       <footer className="bg-white p-4 shadow-inner flex-shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-center">
           <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isLoading} />
