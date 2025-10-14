@@ -1,6 +1,30 @@
+"use client"; // Isso transforma a página em um componente interativo no navegador
+
 import Image from 'next/image';
+import { useState } from 'react'; // Importamos o hook para "lembrar" o estado
+import { useRouter } from 'next/navigation'; // Importamos o hook para redirecionar o usuário
+import { signInWithEmailAndPassword } from 'firebase/auth'; // A função de login do Firebase
+import { auth } from '../../firebase'; // Nossa configuração do Firebase que criamos
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const router = useRouter();
+
+  const handleLogin = async (e) => {
+    e.preventDefault(); // Impede que a página recarregue ao enviar o formulário
+    
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login realizado com sucesso!");
+      alert("Login bem-sucedido! Redirecionando...");
+      router.push('/chat'); // Redireciona para a página de chat após o sucesso
+    } catch (error) {
+      console.error("Erro ao fazer login:", error.message);
+      alert("Erro ao fazer login: " + error.message);
+    }
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-blue-50 p-4">
       <div className="w-full max-w-sm">
@@ -17,17 +41,19 @@ export default function LoginPage() {
             Acesse sua conta
           </h2>
           
-          <form className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 E-mail
               </label>
               <input 
                 type="email" 
-                id="email" 
-                name="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="seuemail@exemplo.com"
+                required
               />
             </div>
 
@@ -37,10 +63,12 @@ export default function LoginPage() {
               </label>
               <input 
                 type="password" 
-                id="password" 
-                name="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="••••••••"
+                required
               />
             </div>
             
