@@ -87,18 +87,23 @@ export default function ChatPage() {
     const userMessageText = userInput;
     setUserInput('');
     setIsLoading(true);
+
+    // AQUI ESTÁ A CORREÇÃO LÓGICA
+    // Verificamos se é a primeira mensagem ANTES de salvar qualquer coisa
+    const isFirstMessage = messages.length === 0;
+    
     const messagesRef = collection(db, 'users', user.uid, 'chats', currentChatId, 'messages');
+    
+    // Agora salvamos a mensagem do usuário
     await addDoc(messagesRef, { 
       role: 'user', 
       text: userMessageText,
       timestamp: serverTimestamp() 
     });
+    
     try {
-      const isFirstMessage = messages.length === 0;
-      
-      // AQUI ESTÁ A NOVA MÁGICA DOS TÍTULOS INTELIGENTES
+      // Usamos a nossa verificação segura para chamar o especialista
       if (isFirstMessage) {
-        // Pede o título para o nosso "especialista" em segundo plano
         fetch('/api/generate-title', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -108,7 +113,7 @@ export default function ChatPage() {
         .then(data => {
           if (data.title) {
             const chatRef = doc(db, 'users', user.uid, 'chats', currentChatId);
-            updateDoc(chatRef, { title: data.title }); // Atualiza o título no banco de dados
+            updateDoc(chatRef, { title: data.title });
           }
         })
         .catch(error => console.error("Erro ao gerar título:", error));
@@ -187,7 +192,7 @@ export default function ChatPage() {
           <form onSubmit={handleSendMessage} className="flex items-center">
             <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isLoading} />
             <button type="submit" className="ml-4 rounded-full bg-blue-600 p-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300" disabled={isLoading}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6"><path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
             </button>
           </form>
         </footer>
