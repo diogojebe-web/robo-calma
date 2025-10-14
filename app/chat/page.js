@@ -17,6 +17,20 @@ export default function ChatPage() {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  
+  // NOVO: Estado para guardar a altura exata da tela e corrigir o bug do celular
+  const [windowHeight, setWindowHeight] = useState(0);
+
+  // NOVO: Efeito que mede a tela do navegador e ajusta a altura
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Mede a tela na primeira vez que a página carrega
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -124,7 +138,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-gray-100">
+    <div className="flex w-full bg-gray-100" style={{ height: windowHeight || '100vh' }}>
       <Sidebar 
         isOpen={isSidebarOpen} 
         setIsOpen={setIsSidebarOpen} 
@@ -164,8 +178,9 @@ export default function ChatPage() {
         <footer className="bg-white p-4 shadow-inner flex-shrink-0">
           <form onSubmit={handleSendMessage} className="flex items-center">
             <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isLoading} />
+            {/* BOTÃO DE ENVIO RESTAURADO PARA A VERSÃO ORIGINAL */}
             <button type="submit" className="ml-4 rounded-full bg-blue-600 p-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300" disabled={isLoading}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
             </button>
           </form>
         </footer>
