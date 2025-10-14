@@ -28,6 +28,7 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
   }, [user]);
   
   const openMenu = (e, chat) => {
+    e.preventDefault();
     setMenuData({ isOpen: true, x: e.pageX, y: e.pageY, chat: chat });
   };
   
@@ -54,23 +55,20 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
     }
     closeMenu();
   };
-  
-  // LÓGICA CORRIGIDA E ROBUSTA PARA O CLIQUE LONGO
-  const handleMouseDown = (e, chat) => {
+
+  const handlePressStart = (e, chat) => {
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
-      // Para mobile, usamos as coordenadas do toque
-      const touchEvent = e.touches ? e.touches[0] : e;
-      openMenu(touchEvent, chat);
-    }, 500); // Meio segundo
+      const eventCoord = e.touches ? e.touches[0] : e;
+      openMenu(eventCoord, chat);
+    }, 500);
   };
 
-  const handleMouseUp = (e, chat) => {
+  const handlePressEnd = (e, chat) => {
     clearTimeout(longPressTimer.current);
-    // Se não foi um clique longo, executa a ação de clique normal
     if (!isLongPress.current) {
-        if (editingChatId !== chat.id && !menuData.isOpen) {
+        if (e.type !== 'contextmenu' && editingChatId !== chat.id && !menuData.isOpen) {
             handleSelectChat(chat.id);
             setIsOpen(false);
         }
@@ -78,11 +76,10 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
   };
   
   const handleContextMenu = (e, chat) => {
-      e.preventDefault(); // Previne o menu padrão do navegador
-      clearTimeout(longPressTimer.current); // Cancela o timer do clique longo
-      openMenu(e, chat);
+    e.preventDefault();
+    clearTimeout(longPressTimer.current);
+    openMenu(e, chat);
   };
-
 
   return (
     <>
@@ -106,14 +103,15 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
             {chats.map(chat => (
               <li 
                 key={chat.id} 
-                // AQUI ESTÁ A MUDANÇA: Usamos eventos de mouse que funcionam para toque também
-                onMouseDown={(e) => handleMouseDown(e, chat)}
-                onMouseUp={(e) => handleMouseUp(e, chat)}
-                onContextMenu={(e) => handleContextMenu(e, chat)} // Para o botão direito no computador
-                onTouchStart={(e) => handleMouseDown(e, chat)} // Reutilizamos a mesma lógica para o toque
-                onTouchEnd={(e) => handleMouseUp(e, chat)}
-                // A placa de "Não Toque" (select-none) foi removida!
-                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
+                onMouseDown={(e) => handlePressStart(e, chat)}
+                onMouseUp={(e) => handlePressEnd(e, chat)}
+                onContextMenu={(e) => handleContextMenu(e, chat)}
+                onTouchStart={(e) => handlePressStart(e, chat)}
+                onTouchEnd={(e) => handlePressEnd(e, chat)}
+                onTouchMove={() => clearTimeout(longPressTimer.current)} // Cancela se o dedo arrastar
+                // AQUI ESTÁ A CORREÇÃO MÁGICA E DEFINITIVA:
+                // select-none diz ao navegador para NÃO abrir o menu de copiar/colar
+                className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
               >
                 {editingChatId === chat.id ? (
                   <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onBlur={() => submitRename(chat.id)} onKeyDown={(e) => e.key === 'Enter' && submitRename(chat.id)} className="w-full bg-transparent text-white outline-none" autoFocus />
