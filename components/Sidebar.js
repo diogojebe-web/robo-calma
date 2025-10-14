@@ -25,10 +25,6 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
     }
   }, [user]);
   
-  const openMenu = (e, chat) => {
-    setMenuData({ isOpen: true, x: e.pageX, y: e.pageY, chat: chat });
-  };
-  
   const closeMenu = () => setMenuData({ isOpen: false, x: 0, y: 0, chat: null });
 
   const startEditing = () => {
@@ -52,28 +48,13 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
     }
     closeMenu();
   };
-
-  // NOVAS FUNÇÕES CORRIGIDAS
-  const longPressTimer = useRef();
-  const isLongPress = useRef(false);
-
-  const handlePressStart = (e, chat) => {
-    isLongPress.current = false;
-    longPressTimer.current = setTimeout(() => {
-      isLongPress.current = true;
-      const position = e.touches ? e.touches[0] : e;
-      openMenu(position, chat);
-    }, 500); // Meio segundo
-  };
-
-  const handlePressEnd = (e, chat) => {
-    clearTimeout(longPressTimer.current);
-    if (!isLongPress.current) {
-      if (!menuData.isOpen && editingChatId !== chat.id) {
-        handleSelectChat(chat.id);
-        setIsOpen(false);
-      }
-    }
+  
+  const handleContextMenu = (e, chat) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const position = e.touches ? e.touches[0] : e;
+    setMenuData({ isOpen: true, x: position.pageX, y: position.pageY, chat: chat });
   };
 
   return (
@@ -97,13 +78,14 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
           <ul className="mt-2 space-y-2">
             {chats.map(chat => (
               <li 
-                key={chat.id}
-                // NOVOS EVENTOS CORRIGIDOS
-                onMouseDown={(e) => handlePressStart(e, chat)}
-                onMouseUp={(e) => handlePressEnd(e, chat)}
-                onTouchStart={(e) => handlePressStart(e, chat)}
-                onTouchEnd={(e) => handlePressEnd(e, chat)}
-                onContextMenu={(e) => e.preventDefault()} // Previne o menu do clique direito
+                key={chat.id} 
+                onClick={() => {
+                  if (editingChatId !== chat.id && !menuData.isOpen) {
+                    handleSelectChat(chat.id);
+                    setIsOpen(false);
+                  }
+                }}
+                onContextMenu={(e) => handleContextMenu(e, chat)}
                 className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
               >
                 {editingChatId === chat.id ? (
