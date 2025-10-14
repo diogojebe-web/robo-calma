@@ -16,10 +16,6 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Robô C.A.L.M.A.",
   description: "Seu assistente de bem-estar, equilíbrio e leveza.",
-  icons: {
-    icon: "/favicon.ico",   // usamos o arquivo que você colocou em /public
-    apple: "/favicon.ico",  // também serve para atalho no iPhone
-  },
 };
 
 export default function RootLayout({ children }) {
