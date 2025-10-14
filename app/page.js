@@ -1,27 +1,27 @@
-"use client"; // Isso transforma a página em um componente interativo no navegador
+"use client";
 
 import Image from 'next/image';
-import { useState } from 'react'; // Importamos o hook para "lembrar" o estado
-import { useRouter } from 'next/navigation'; // Importamos o hook para redirecionar o usuário
-import { signInWithEmailAndPassword } from 'firebase/auth'; // A função de login do Firebase
-import { auth } from '../firebase'; // Nossa configuração do Firebase que criamos
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase'; // Verifique se este caminho está correto
 
-export default function LoginPage() {
+export default function HomePage() { // Renomeado de LoginPage para HomePage para clareza
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
 
   const handleLogin = async (e) => {
-    e.preventDefault(); // Impede que a página recarregue ao enviar o formulário
-    
+    e.preventDefault();
+
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login realizado com sucesso!");
-      alert("Login bem-sucedido! Redirecionando...");
-      router.push('/chat'); // Redireciona para a página de chat após o sucesso
+      console.log("Login realizado com sucesso! Redirecionando...");
+      // A LINHA DO ALERT FOI REMOVIDA DAQUI
+      router.push('/chat'); // Agora o redirecionamento é imediato
     } catch (error) {
       console.error("Erro ao fazer login:", error.message);
-      alert("Erro ao fazer login: " + error.message);
+      alert("Erro ao fazer login: " + error.message); // Mantemos o alerta de erro, que é útil
     }
   };
 
@@ -40,7 +40,7 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold text-center text-blue-800 mb-6">
             Acesse sua conta
           </h2>
-          
+
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -71,7 +71,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-            
+
             <button 
               type="submit"
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -80,7 +80,7 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        
+
         <p className="mt-8 text-center text-xs text-gray-500">
           desenvolvido por @diogojebe com os princípios do Método C.A.L.M.A.
         </p>
