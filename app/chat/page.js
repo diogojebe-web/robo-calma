@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { signOut } from 'firebase/auth'; // Importamos a função de logout
 import { auth, db } from '../../firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 
@@ -13,6 +14,12 @@ export default function ChatPage() {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // NOVA FUNÇÃO DE LOGOUT
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/'); // Redireciona para a página de login
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -88,9 +95,20 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-blue-50">
-      <header className="bg-white shadow-md p-4 flex items-center flex-shrink-0">
+      {/* CABEÇALHO ATUALIZADO COM O BOTÃO */}
+      <header className="bg-white shadow-md p-4 flex items-center justify-between flex-shrink-0">
         <h1 className="text-xl font-bold text-blue-800">Robô C.A.L.M.A.</h1>
+        <button 
+          onClick={handleLogout} 
+          title="Sair"
+          className="p-2 rounded-full text-gray-500 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+          </svg>
+        </button>
       </header>
+
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && !isLoading && (
           <div className="flex flex-col justify-center items-center h-full text-center p-4">
@@ -100,7 +118,6 @@ export default function ChatPage() {
         )}
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {/* AQUI ESTÁ A CORREÇÃO: trocamos bg-blue-500 por bg-blue-600 */}
             <div className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}>
               <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
             </div>
@@ -109,6 +126,7 @@ export default function ChatPage() {
         {isLoading && (<div className="flex justify-start"><div className="max-w-xs lg:max-w-md bg-white rounded-lg p-3 shadow"><p className="text-sm text-gray-500 animate-pulse">Digitando...</p></div></div>)}
         <div ref={messagesEndRef} />
       </main>
+
       <footer className="bg-white p-4 shadow-inner flex-shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-center">
           <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isLoading} />
