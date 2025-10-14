@@ -56,30 +56,15 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
     closeMenu();
   };
 
-  const handlePressStart = (e, chat) => {
-    isLongPress.current = false;
-    longPressTimer.current = setTimeout(() => {
-      isLongPress.current = true;
-      const eventCoord = e.touches ? e.touches[0] : e;
-      openMenu(eventCoord, chat);
-    }, 500);
-  };
-
-  const handlePressEnd = (e, chat) => {
-    clearTimeout(longPressTimer.current);
-    if (!isLongPress.current) {
-        if (e.type !== 'contextmenu' && editingChatId !== chat.id && !menuData.isOpen) {
-            handleSelectChat(chat.id);
-            setIsOpen(false);
-        }
-    }
-  };
+  
   
   const handleContextMenu = (e, chat) => {
-    e.preventDefault();
-    clearTimeout(longPressTimer.current);
-    openMenu(e, chat);
-  };
+  e.preventDefault(); // O SINAL DE "PARE" PARA O NAVEGADOR.
+  e.stopPropagation();
+
+  const position = e.touches ? e.touches[0] : e;
+  setMenuData({ isOpen: true, x: position.pageX, y: position.pageY, chat: chat });
+};
 
   return (
     <>
@@ -103,14 +88,14 @@ export default function Sidebar({ isOpen, setIsOpen, handleNewChat, handleSelect
             {chats.map(chat => (
               <li 
                 key={chat.id} 
-                onMouseDown={(e) => handlePressStart(e, chat)}
-                onMouseUp={(e) => handlePressEnd(e, chat)}
-                onContextMenu={(e) => handleContextMenu(e, chat)}
-                onTouchStart={(e) => handlePressStart(e, chat)}
-                onTouchEnd={(e) => handlePressEnd(e, chat)}
-                onTouchMove={() => clearTimeout(longPressTimer.current)} // Cancela se o dedo arrastar
-                // AQUI ESTÁ A CORREÇÃO MÁGICA E DEFINITIVA:
-                // select-none diz ao navegador para NÃO abrir o menu de copiar/colar
+                onClick={() => {
+  if (editingChatId !== chat.id && !menuData.isOpen) {
+    handleSelectChat(chat.id);
+    setIsOpen(false);
+  }
+}}
+// onContextMenu AGORA É A ÚNICA INSTRUÇÃO NECESSÁRIA PARA O MENU
+onContextMenu={(e) => handleContextMenu(e, chat)}
                 className={`flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none ${activeChatId === chat.id && !editingChatId ? 'bg-gray-700' : ''}`}
               >
                 {editingChatId === chat.id ? (
