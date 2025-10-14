@@ -169,13 +169,27 @@ export default function ChatPage() {
           <div ref={messagesEndRef} />
         </main>
         <footer className="bg-white p-4 shadow-inner flex-shrink-0">
-          <form onSubmit={handleSendMessage} className="flex items-center">
-            <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isLoading} />
-            <button type="submit" className="ml-4 rounded-full bg-blue-600 p-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300" disabled={isLoading}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6"><path d="M3.478 2.404a.75.75 0 0 0-.926._941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
-            </button>
-          </form>
-        </footer>
+  <form onSubmit={handleSendMessage} className="flex items-center">
+    <input 
+      type="text" 
+      value={userInput} 
+      onChange={(e) => setUserInput(e.target.value)} 
+      placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."} 
+      className="flex-1 rounded-full border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+      disabled={isLoading} 
+    />
+    {/* BOTÃO DE ENVIO ORIGINAL RESTAURADO */}
+    <button 
+      type="submit" 
+      className="ml-4 rounded-full bg-blue-600 p-3 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300" 
+      disabled={isLoading}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+        <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986a.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+      </svg>
+    </button>
+  </form>
+</footer>
       </div>
     </div>
   );
