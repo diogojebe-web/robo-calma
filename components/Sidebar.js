@@ -3,10 +3,10 @@
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "../firebase";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import ContextMenu from "./ContextMenu";
 
-// Link do WhatsApp (Brasil = 55). Número: 21 98817-0913
+// WhatsApp (Brasil = 55) — 21 98817-0913
 const WHATSAPP_LINK =
   "https://wa.me/5521988170913?text=Ol%C3%A1%2C%20vim%20do%20Rob%C3%B4%20C.A.L.M.A.%20e%20quero%20saber%20mais%20sobre%20o%20M%C3%A9todo%20C.A.L.M.A.";
 
@@ -30,6 +30,11 @@ export default function Sidebar({
     y: 0,
     chat: null,
   });
+
+  // bloqueio anti-toque-fantasma por 300ms após fechar o menu
+  const [ignoreTapUntil, setIgnoreTapUntil] = useState(0);
+  const shouldIgnoreTap = () => Date.now() < ignoreTapUntil;
+
   const longPressTimer = useRef();
   const isLongPress = useRef(false);
 
@@ -37,21 +42,24 @@ export default function Sidebar({
     if (user) {
       const chatsRef = collection(db, "users", user.uid, "chats");
       const q = query(chatsRef, orderBy("createdAt", "desc"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        setChats(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const unsub = onSnapshot(q, (snap) => {
+        setChats(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       });
-      return () => unsubscribe();
+      return () => unsub();
     }
   }, [user]);
 
-  const closeMenu = () =>
+  const closeMenuSafely = (closedByOverlay) => {
     setMenuData({ isOpen: false, x: 0, y: 0, chat: null });
+    // se foi overlay, arma janela de “ignorar toques”
+    if (closedByOverlay) setIgnoreTapUntil(Date.now() + 300);
+  };
 
   const startEditing = () => {
     if (!menuData.chat) return;
     setEditingChatId(menuData.chat.id);
     setNewTitle(menuData.chat.title || "");
-    closeMenu();
+    closeMenuSafely(false);
   };
 
   const submitRename = async (chatId) => {
@@ -68,20 +76,21 @@ export default function Sidebar({
       `Tem certeza que deseja excluir a conversa "${menuData.chat.title}"? Esta ação não pode ser desfeita.`
     );
     if (ok) await handleDeleteChat(menuData.chat.id);
-    closeMenu();
+    closeMenuSafely(false);
   };
 
   // toque longo (mobile)
   const handleTouchStart = (e, chat) => {
     isLongPress.current = false;
+    clearTimeout(longPressTimer.current);
     longPressTimer.current = setTimeout(() => {
       e.preventDefault();
       isLongPress.current = true;
-      const position = e.touches?.[0];
+      const t = e.touches?.[0];
       setMenuData({
         isOpen: true,
-        x: position?.pageX || 0,
-        y: position?.pageY || 0,
+        x: t?.pageX || 0,
+        y: t?.pageY || 0,
         chat,
       });
     }, 500);
@@ -89,12 +98,11 @@ export default function Sidebar({
 
   const handleTouchEnd = (e, chat) => {
     clearTimeout(longPressTimer.current);
-    if (!isLongPress.current) {
-      if (!menuData.isOpen && editingChatId !== chat.id) {
-        handleSelectChat(chat.id);
-        setIsOpen(false);
-      }
-    }
+    if (isLongPress.current) return; // foi menu, não seleciona
+    if (menuData.isOpen || shouldIgnoreTap()) return; // overlay fechou agora
+    if (editingChatId === chat.id) return;
+    handleSelectChat(chat.id);
+    setIsOpen(false);
   };
 
   // clique direito (desktop)
@@ -105,10 +113,10 @@ export default function Sidebar({
 
   // clique normal (desktop)
   const handleClickItem = (chat) => {
-    if (!menuData.isOpen && editingChatId !== chat.id) {
-      handleSelectChat(chat.id);
-      setIsOpen(false);
-    }
+    if (menuData.isOpen || shouldIgnoreTap()) return;
+    if (editingChatId === chat.id) return;
+    handleSelectChat(chat.id);
+    setIsOpen(false);
   };
 
   const openWhatsapp = () => {
@@ -214,12 +222,12 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* MENU fixo + pílula */}
+      {/* Context menu */}
       <ContextMenu
         isOpen={menuData.isOpen}
         x={menuData.x}
         y={menuData.y}
-        onClose={closeMenu}
+        onClose={(closedByOverlay) => closeMenuSafely(closedByOverlay)}
         onRename={startEditing}
         onDelete={confirmDelete}
         title={menuData.chat?.title || "Nova Conversa..."}
