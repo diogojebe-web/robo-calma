@@ -1,16 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { signOut } from 'firebase/auth';
-import { auth, db } from '../../firebase';
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { signOut } from "firebase/auth";
+import { auth, db } from "../../firebase";
 import {
-  collection, addDoc, serverTimestamp,
-  query, orderBy, onSnapshot,
-  doc, updateDoc, getDocs, writeBatch
-} from 'firebase/firestore';
-import Sidebar from '../../components/Sidebar';
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  onSnapshot,
+  doc,
+  updateDoc,
+  getDocs,
+  writeBatch,
+} from "firebase/firestore";
+import Sidebar from "../../components/Sidebar";
 
 export default function ChatPage() {
   const [user, loading] = useAuthState(auth);
@@ -18,30 +25,30 @@ export default function ChatPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [userInput, setUserInput] = useState('');
+  const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const [windowHeight, setWindowHeight] = useState(0);
 
   useEffect(() => {
     const handleResize = () => setWindowHeight(window.innerHeight);
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     handleResize();
-    return () => window.removeEventListener('resize', handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
-    router.push('/');
+    router.push("/");
   };
 
   // NOVA CONVERSA
   const handleNewChat = async () => {
     if (!user) return null;
-    const chatsRef = collection(db, 'users', user.uid, 'chats');
+    const chatsRef = collection(db, "users", user.uid, "chats");
     const newChatRef = await addDoc(chatsRef, {
-      title: 'Nova Conversa...',
-      createdAt: serverTimestamp()
+      title: "Nova Conversa...",
+      createdAt: serverTimestamp(),
     });
     setActiveChatId(newChatRef.id);
     setMessages([]);
@@ -50,36 +57,33 @@ export default function ChatPage() {
   };
 
   // SELECIONAR CONVERSA
-  const handleSelectChat = (chatId) => {
-    setActiveChatId(chatId);
-  };
+  const handleSelectChat = (chatId) => setActiveChatId(chatId);
 
-  // RENOMEAR CONVERSA (⚠️ novo)
+  // RENOMEAR CONVERSA
   const handleRenameChat = async (chatId, newTitle) => {
     if (!user || !newTitle?.trim()) return;
     try {
-      const chatRef = doc(db, 'users', user.uid, 'chats', chatId);
+      const chatRef = doc(db, "users", user.uid, "chats", chatId);
       await updateDoc(chatRef, { title: newTitle.trim() });
-      // Sidebar escuta via onSnapshot e atualiza sozinho.
     } catch (e) {
-      console.error('Erro ao renomear chat:', e);
-      alert('Não consegui renomear. Tente novamente.');
+      console.error("Erro ao renomear chat:", e);
+      alert("Não consegui renomear. Tente novamente.");
     }
   };
 
-  // EXCLUIR CONVERSA (⚠️ novo)
+  // EXCLUIR CONVERSA
   const handleDeleteChat = async (chatId) => {
     if (!user) return;
     try {
       const batch = writeBatch(db);
 
       // apaga mensagens
-      const msgsRef = collection(db, 'users', user.uid, 'chats', chatId, 'messages');
+      const msgsRef = collection(db, "users", user.uid, "chats", chatId, "messages");
       const msgsSnap = await getDocs(msgsRef);
       msgsSnap.forEach((d) => batch.delete(d.ref));
 
       // apaga o próprio chat
-      const chatRef = doc(db, 'users', user.uid, 'chats', chatId);
+      const chatRef = doc(db, "users", user.uid, "chats", chatId);
       batch.delete(chatRef);
 
       await batch.commit();
@@ -89,8 +93,8 @@ export default function ChatPage() {
         setMessages([]);
       }
     } catch (e) {
-      console.error('Erro ao excluir chat:', e);
-      alert('Não consegui excluir. Tente novamente.');
+      console.error("Erro ao excluir chat:", e);
+      alert("Não consegui excluir. Tente novamente.");
     }
   };
 
@@ -101,10 +105,10 @@ export default function ChatPage() {
   // Ouve mensagens do chat ativo
   useEffect(() => {
     if (user && activeChatId) {
-      const messagesRef = collection(db, 'users', user.uid, 'chats', activeChatId, 'messages');
-      const q = query(messagesRef, orderBy('timestamp'));
+      const messagesRef = collection(db, "users", user.uid, "chats", activeChatId, "messages");
+      const q = query(messagesRef, orderBy("timestamp"));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const history = querySnapshot.docs.map(doc => doc.data());
+        const history = querySnapshot.docs.map((doc) => doc.data());
         setMessages(history);
       });
       return () => unsubscribe();
@@ -117,7 +121,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/');
+      router.push("/");
     }
   }, [user, loading, router]);
 
@@ -135,41 +139,71 @@ export default function ChatPage() {
 
     const userMessageText = userInput;
     const currentMessages = messages;
-    setUserInput('');
+    setUserInput("");
     setIsLoading(true);
 
-    const messagesRef = collection(db, 'users', user.uid, 'chats', currentChatId, 'messages');
-    await addDoc(messagesRef, { role: 'user', text: userMessageText, timestamp: serverTimestamp() });
+    const messagesRef = collection(db, "users", user.uid, "chats", currentChatId, "messages");
+    await addDoc(messagesRef, {
+      role: "user",
+      text: userMessageText,
+      timestamp: serverTimestamp(),
+    });
 
     try {
       // Gera título na 1ª mensagem
       if (currentMessages.length === 0) {
-        fetch('/api/generate-title', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        fetch("/api/generate-title", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: userMessageText }),
         })
-          .then(res => res.json())
-          .then(data => {
+          .then((res) => res.json())
+          .then((data) => {
             if (data.title) {
-              const chatRef = doc(db, 'users', user.uid, 'chats', currentChatId);
+              const chatRef = doc(db, "users", user.uid, "chats", currentChatId);
               updateDoc(chatRef, { title: data.title });
             }
           })
-          .catch(error => console.error("Erro ao gerar título:", error));
+          .catch((error) => console.error("Erro ao gerar título:", error));
       }
 
-      // Chamada da sua API de chat (mantida)
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      // Chamada da API de chat OTIMIZADA (server devolve usage + model)
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ history: currentMessages, newMessage: userMessageText }),
       });
       const data = await response.json();
-      await addDoc(messagesRef, { role: 'bot', text: data.text, timestamp: serverTimestamp() });
+
+      await addDoc(messagesRef, {
+        role: "bot",
+        text: data.text,
+        timestamp: serverTimestamp(),
+      });
+
+      // >>> Salvar USO DE TOKENS (se veio da API)
+      try {
+        if (data?.usage) {
+          const usageRef = collection(db, "users", user.uid, "chats", currentChatId, "usage");
+          await addDoc(usageRef, {
+            model: data.model || "desconhecido",
+            promptTokens: data.usage.promptTokenCount ?? null,
+            outputTokens: data.usage.candidatesTokenCount ?? null,
+            totalTokens: data.usage.totalTokenCount ?? null,
+            createdAt: serverTimestamp(),
+          });
+          console.log("USAGE:", data.usage);
+        }
+      } catch (e) {
+        console.warn("Não consegui salvar usage:", e);
+      }
     } catch (error) {
       console.error("Erro na comunicação com a API:", error);
-      await addDoc(messagesRef, { role: 'bot', text: 'Desculpe, estou com um problema. Tente novamente mais tarde.', timestamp: serverTimestamp() });
+      await addDoc(messagesRef, {
+        role: "bot",
+        text: "Desculpe, estou com um problema. Tente novamente mais tarde.",
+        timestamp: serverTimestamp(),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -184,14 +218,13 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex w-full bg-gray-100" style={{ height: windowHeight || '100vh' }}>
+    <div className="flex w-full bg-gray-100" style={{ height: windowHeight || "100vh" }}>
       <Sidebar
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
         handleNewChat={handleNewChat}
         handleSelectChat={handleSelectChat}
         activeChatId={activeChatId}
-        /* ⚠️ Passando as novas funções */
         handleRenameChat={handleRenameChat}
         handleDeleteChat={handleDeleteChat}
       />
@@ -200,12 +233,20 @@ export default function ChatPage() {
         <header className="bg-white shadow-md p-4 flex items-center justify-between flex-shrink-0 z-10">
           <div className="flex items-center">
             <button onClick={() => setIsSidebarOpen(true)} className="mr-4 p-1 text-gray-600 md:hidden">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
             </button>
             <h1 className="text-xl font-bold text-blue-800">Robô C.A.L.M.A.</h1>
           </div>
-          <button onClick={handleLogout} title="Sair" className="p-2 rounded-full text-gray-500 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>
+          <button
+            onClick={handleLogout}
+            title="Sair"
+            className="p-2 rounded-full text-gray-500 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
           </button>
         </header>
 
@@ -218,8 +259,12 @@ export default function ChatPage() {
           )}
 
           {messages.map((msg, index) => (
-            <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}>
+            <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${
+                  msg.role === "user" ? "bg-blue-600 text-white" : "bg-white text-gray-800"
+                }`}
+              >
                 <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
               </div>
             </div>
@@ -244,9 +289,8 @@ export default function ChatPage() {
               onChange={(e) => setUserInput(e.target.value)}
               placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."}
               className="flex-1 rounded-full border border-gray-300 px-4 py-2
-           bg-white text-gray-900 placeholder-gray-500
-           focus:outline-none focus:ring-2 focus:ring-blue-500"
-
+                         bg-white text-gray-900 placeholder-gray-500
+                         focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoading}
             />
             <button
