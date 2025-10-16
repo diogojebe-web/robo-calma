@@ -19,6 +19,8 @@ import {
 } from "firebase/firestore";
 import Sidebar from "../../components/Sidebar";
 
+const ADMIN_EMAIL = "diogojebe@gmail.com";
+
 export default function ChatPage() {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
@@ -27,6 +29,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [lastUsage, setLastUsage] = useState(null); // <<< NOVO (admin bar)
   const messagesEndRef = useRef(null);
   const [windowHeight, setWindowHeight] = useState(0);
 
@@ -53,13 +56,13 @@ export default function ChatPage() {
     setActiveChatId(newChatRef.id);
     setMessages([]);
     setIsSidebarOpen(false);
+    setLastUsage(null);
     return newChatRef.id;
   };
 
-  // SELECIONAR CONVERSA
   const handleSelectChat = (chatId) => setActiveChatId(chatId);
 
-  // RENOMEAR CONVERSA
+  // RENOMEAR
   const handleRenameChat = async (chatId, newTitle) => {
     if (!user || !newTitle?.trim()) return;
     try {
@@ -71,18 +74,16 @@ export default function ChatPage() {
     }
   };
 
-  // EXCLUIR CONVERSA
+  // EXCLUIR
   const handleDeleteChat = async (chatId) => {
     if (!user) return;
     try {
       const batch = writeBatch(db);
 
-      // apaga mensagens
       const msgsRef = collection(db, "users", user.uid, "chats", chatId, "messages");
       const msgsSnap = await getDocs(msgsRef);
       msgsSnap.forEach((d) => batch.delete(d.ref));
 
-      // apaga o próprio chat
       const chatRef = doc(db, "users", user.uid, "chats", chatId);
       batch.delete(chatRef);
 
@@ -91,6 +92,7 @@ export default function ChatPage() {
       if (activeChatId === chatId) {
         setActiveChatId(null);
         setMessages([]);
+        setLastUsage(null);
       }
     } catch (e) {
       console.error("Erro ao excluir chat:", e);
@@ -150,7 +152,7 @@ export default function ChatPage() {
     });
 
     try {
-      // Gera título na 1ª mensagem
+      // título na 1ª mensagem
       if (currentMessages.length === 0) {
         fetch("/api/generate-title", {
           method: "POST",
@@ -167,7 +169,7 @@ export default function ChatPage() {
           .catch((error) => console.error("Erro ao gerar título:", error));
       }
 
-      // Chamada da API de chat OTIMIZADA (server devolve usage + model)
+      // chamada da API (server já devolve usage + model)
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -181,9 +183,16 @@ export default function ChatPage() {
         timestamp: serverTimestamp(),
       });
 
-      // >>> Salvar USO DE TOKENS (se veio da API)
+      // salva usage no Firestore E mostra barra (só admin)
       try {
         if (data?.usage) {
+          setLastUsage({
+            model: data.model || "gemini",
+            prompt: data.usage.promptTokenCount ?? null,
+            output: data.usage.candidatesTokenCount ?? null,
+            total: data.usage.totalTokenCount ?? null,
+          });
+
           const usageRef = collection(db, "users", user.uid, "chats", currentChatId, "usage");
           await addDoc(usageRef, {
             model: data.model || "desconhecido",
@@ -192,7 +201,6 @@ export default function ChatPage() {
             totalTokens: data.usage.totalTokenCount ?? null,
             createdAt: serverTimestamp(),
           });
-          console.log("USAGE:", data.usage);
         }
       } catch (e) {
         console.warn("Não consegui salvar usage:", e);
@@ -250,6 +258,13 @@ export default function ChatPage() {
           </button>
         </header>
 
+        {/* Barra de tokens — só ADMIN vê */}
+        {user?.email === ADMIN_EMAIL && lastUsage && (
+          <div className="bg-yellow-50 border-b border-yellow-200 text-yellow-900 text-xs px-4 py-2">
+            <strong>Tokens:</strong> prompt {lastUsage.prompt} • saída {lastUsage.output} • total {lastUsage.total} — <strong>modelo:</strong> {lastUsage.model}
+          </div>
+        )}
+
         <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-blue-50">
           {!activeChatId && messages.length === 0 && !isLoading && (
             <div className="flex flex-col justify-center items-center h-full text-center p-4">
@@ -288,9 +303,7 @@ export default function ChatPage() {
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               placeholder={isLoading ? "Aguarde..." : "Digite sua mensagem..."}
-              className="flex-1 rounded-full border border-gray-300 px-4 py-2
-                         bg-white text-gray-900 placeholder-gray-500
-                         focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 rounded-full border border-gray-300 px-4 py-2 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoading}
             />
             <button
