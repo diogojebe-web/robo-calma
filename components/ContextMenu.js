@@ -36,7 +36,18 @@ export default function ContextMenu({
   return (
     <>
       {/* Overlay com blur (fecha ao tocar) */}
-      <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+  className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+  onClick={(e) => {
+    e.stopPropagation();
+    onClose();
+  }}
+  onTouchStart={(e) => {
+    e.stopPropagation();
+    onClose();
+  }}
+/>
+
 
       {/* Pílula com o título da conversa */}
       <div
