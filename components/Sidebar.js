@@ -31,12 +31,18 @@ export default function Sidebar({
     chat: null,
   });
 
-  // bloqueio anti-toque-fantasma por 300ms após fechar o menu
+  // anti-toque-fantasma por 300ms após fechar o menu
   const [ignoreTapUntil, setIgnoreTapUntil] = useState(0);
   const shouldIgnoreTap = () => Date.now() < ignoreTapUntil;
 
+  // long press
   const longPressTimer = useRef();
   const isLongPress = useRef(false);
+
+  // >>> NOVO: Guardas de scroll vs clique
+  const touchStartPos = useRef({ x: 0, y: 0 });
+  const didMove = useRef(false);
+  const MOVE_THRESHOLD = 10; // pixels
 
   useEffect(() => {
     if (user) {
@@ -51,7 +57,6 @@ export default function Sidebar({
 
   const closeMenuSafely = (closedByOverlay) => {
     setMenuData({ isOpen: false, x: 0, y: 0, chat: null });
-    // se foi overlay, arma janela de “ignorar toques”
     if (closedByOverlay) setIgnoreTapUntil(Date.now() + 300);
   };
 
@@ -79,39 +84,71 @@ export default function Sidebar({
     closeMenuSafely(false);
   };
 
-  // toque longo (mobile)
+  // ——— Toque longo (mobile)
   const handleTouchStart = (e, chat) => {
+    // reset guardas
+    didMove.current = false;
+    const t = e.touches?.[0];
+    touchStartPos.current = { x: t?.clientX || 0, y: t?.clientY || 0 };
+
     isLongPress.current = false;
     clearTimeout(longPressTimer.current);
     longPressTimer.current = setTimeout(() => {
       e.preventDefault();
       isLongPress.current = true;
-      const t = e.touches?.[0];
+      const pos = e.touches?.[0];
       setMenuData({
         isOpen: true,
-        x: t?.pageX || 0,
-        y: t?.pageY || 0,
+        x: pos?.pageX || 0,
+        y: pos?.pageY || 0,
         chat,
       });
     }, 500);
   };
 
+  const handleTouchMove = (e) => {
+    // se arrastar além do limite, NÃO é clique
+    const t = e.touches?.[0];
+    if (!t) return;
+    const dx = Math.abs(t.clientX - touchStartPos.current.x);
+    const dy = Math.abs(t.clientY - touchStartPos.current.y);
+    if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+      didMove.current = true;
+    }
+    // mover cancela o long-press
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
   const handleTouchEnd = (e, chat) => {
     clearTimeout(longPressTimer.current);
-    if (isLongPress.current) return; // foi menu, não seleciona
-    if (menuData.isOpen || shouldIgnoreTap()) return; // overlay fechou agora
+
+    // 1) se foi long-press: nada (menu já abriu)
+    if (isLongPress.current) return;
+
+    // 2) se overlay acabou de fechar: ignora
+    if (menuData.isOpen || shouldIgnoreTap()) return;
+
+    // 3) se rolou scroll (moveu acima do limite): ignora (não é clique)
+    if (didMove.current) {
+      didMove.current = false;
+      return;
+    }
+
+    // 4) se está editando esse chat: ignora
     if (editingChatId === chat.id) return;
+
+    // 5) 👉 clique válido
     handleSelectChat(chat.id);
     setIsOpen(false);
   };
 
-  // clique direito (desktop)
+  // ——— Clique direito (desktop)
   const handleContextMenu = (e, chat) => {
     e.preventDefault();
     setMenuData({ isOpen: true, x: e.pageX, y: e.pageY, chat });
   };
 
-  // clique normal (desktop)
+  // ——— Clique normal (desktop)
   const handleClickItem = (chat) => {
     if (menuData.isOpen || shouldIgnoreTap()) return;
     if (editingChatId === chat.id) return;
@@ -134,6 +171,8 @@ export default function Sidebar({
         ${isOpen ? "translate-x-0" : "-translate-x-full"} 
         md:relative md:translate-x-0 md:w-64`}
         onContextMenu={(e) => e.preventDefault()}
+        // dica p/ mobile: ajuda o navegador a entender que a intenção principal é rolar
+        style={{ touchAction: "pan-y" }}
       >
         {/* Topo */}
         <div className="flex items-center justify-between mb-4">
@@ -186,11 +225,11 @@ export default function Sidebar({
               return (
                 <li
                   key={chat.id}
-                  onClick={() => handleClickItem(chat)}
-                  onContextMenu={(e) => handleContextMenu(e, chat)}
-                  onTouchStart={(e) => handleTouchStart(e, chat)}
-                  onTouchEnd={(e) => handleTouchEnd(e, chat)}
-                  onTouchMove={() => clearTimeout(longPressTimer.current)}
+                  onClick={() => handleClickItem(chat)}               // desktop
+                  onContextMenu={(e) => handleContextMenu(e, chat)}   // desktop
+                  onTouchStart={(e) => handleTouchStart(e, chat)}     // mobile
+                  onTouchMove={handleTouchMove}                       // mobile
+                  onTouchEnd={(e) => handleTouchEnd(e, chat)}         // mobile
                   className={[
                     "flex items-center justify-between rounded-lg p-2 text-sm text-gray-300 hover:bg-gray-700 select-none transition",
                     activeChatId === chat.id && !editingChatId ? "bg-gray-700" : "",
