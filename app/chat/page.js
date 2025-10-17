@@ -236,6 +236,15 @@ export default function ChatPage() {
         handleRenameChat={handleRenameChat}
         handleDeleteChat={handleDeleteChat}
       />
+      
+      {/* === OVERLAY PARA FECHAR A LATERAL AO CLICAR FORA === */}
+{isSidebarOpen && (
+  <div
+    className="fixed inset-0 z-20 bg-black/30 md:hidden"
+    onClick={() => setIsSidebarOpen(false)}
+  />
+)}
+
 
       <div className="flex flex-1 flex-col h-full">
         <header className="bg-white shadow-md p-4 flex items-center justify-between flex-shrink-0 z-10">
