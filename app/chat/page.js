@@ -20,6 +20,7 @@ import {
 import Sidebar from "../../components/Sidebar";
 
 const ADMIN_EMAIL = "diogojebe@gmail.com";
+const CLIENT_HISTORY_LIMIT = 8; // manda só as últimas N (o server também corta)
 
 export default function ChatPage() {
   const [user, loading] = useAuthState(auth);
@@ -29,7 +30,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [lastUsage, setLastUsage] = useState(null); // <<< NOVO (admin bar)
+  const [lastUsage, setLastUsage] = useState(null);
   const messagesEndRef = useRef(null);
   const [windowHeight, setWindowHeight] = useState(0);
 
@@ -79,14 +80,11 @@ export default function ChatPage() {
     if (!user) return;
     try {
       const batch = writeBatch(db);
-
       const msgsRef = collection(db, "users", user.uid, "chats", chatId, "messages");
       const msgsSnap = await getDocs(msgsRef);
       msgsSnap.forEach((d) => batch.delete(d.ref));
-
       const chatRef = doc(db, "users", user.uid, "chats", chatId);
       batch.delete(chatRef);
-
       await batch.commit();
 
       if (activeChatId === chatId) {
@@ -122,9 +120,7 @@ export default function ChatPage() {
   useEffect(scrollToBottom, [messages, isLoading]);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/");
-    }
+    if (!loading && !user) router.push("/");
   }, [user, loading, router]);
 
   // Enviar mensagem
@@ -169,11 +165,13 @@ export default function ChatPage() {
           .catch((error) => console.error("Erro ao gerar título:", error));
       }
 
-      // chamada da API (server já devolve usage + model)
+      // >>> corta histórico no cliente também
+      const shortHistory = currentMessages.slice(-CLIENT_HISTORY_LIMIT);
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ history: currentMessages, newMessage: userMessageText }),
+        body: JSON.stringify({ history: shortHistory, newMessage: userMessageText }),
       });
       const data = await response.json();
 
@@ -236,15 +234,14 @@ export default function ChatPage() {
         handleRenameChat={handleRenameChat}
         handleDeleteChat={handleDeleteChat}
       />
-      
-      {/* === OVERLAY PARA FECHAR A LATERAL AO CLICAR FORA === */}
-{isSidebarOpen && (
-  <div
-    className="fixed inset-0 z-20 bg-black/30 md:hidden"
-    onClick={() => setIsSidebarOpen(false)}
-  />
-)}
 
+      {/* overlay para fechar a lateral tocando fora (mobile) */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-black/30 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       <div className="flex flex-1 flex-col h-full">
         <header className="bg-white shadow-md p-4 flex items-center justify-between flex-shrink-0 z-10">
@@ -267,7 +264,7 @@ export default function ChatPage() {
           </button>
         </header>
 
-        {/* Barra de tokens — só ADMIN vê */}
+        {/* barra de tokens — só ADMIN vê */}
         {user?.email === ADMIN_EMAIL && lastUsage && (
           <div className="bg-yellow-50 border-b border-yellow-200 text-yellow-900 text-xs px-4 py-2">
             <strong>Tokens:</strong> prompt {lastUsage.prompt} • saída {lastUsage.output} • total {lastUsage.total} — <strong>modelo:</strong> {lastUsage.model}
@@ -284,11 +281,7 @@ export default function ChatPage() {
 
           {messages.map((msg, index) => (
             <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${
-                  msg.role === "user" ? "bg-blue-600 text-white" : "bg-white text-gray-800"
-                }`}
-              >
+              <div className={`max-w-xs lg:max-w-md rounded-lg p-3 shadow ${msg.role === "user" ? "bg-blue-600 text-white" : "bg-white text-gray-800"}`}>
                 <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
               </div>
             </div>

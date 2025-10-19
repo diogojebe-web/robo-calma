@@ -1,0 +1,35 @@
+{
+  "sections": [
+    {
+      "title": "Consciência Emocional • Gatilhos e compulsão",
+      "keywords": ["gatilho", "compulsão", "ansiedade", "culpa", "tédio", "estresse"],
+      "text": "TEXTO LONGO AQUI: explique como identificar emoções, exemplos práticos, perguntas-guia, técnica de pausa antes de comer, etc.",
+      "alwaysInclude": false
+    },
+    {
+      "title": "Alimentação que Nutre • Prato equilibrado",
+      "keywords": ["refeição", "proteína", "fibras", "carboidrato", "gordura boa", "saciedade"],
+      "text": "TEXTO LONGO AQUI: estrutura de prato, exemplos de café/ almoço/ jantar, lanches, atenção plena, lidar com doces, etc.",
+      "alwaysInclude": false
+    },
+    {
+      "title": "Liberdade em Movimento • Treino em casa para iniciantes",
+      "keywords": ["exercício", "treino", "aeróbico", "força", "HIIT", "iniciantes", "em casa"],
+      "text": "TEXTO LONGO AQUI: opções de treino em casa, progressão segura, duração recomendada, combinações simples, aquecimento/alongamento.",
+      "alwaysInclude": false
+    },
+    {
+      "title": "Mentalidade Estável • Recaídas e constância",
+      "keywords": ["hábito", "consistência", "recaída", "motivação", "disciplina", "rotina"],
+      "text": "TEXTO LONGO AQUI: como lidar com recaídas, ritual de reinício, metas mínimas, monitoramento simples, reforço positivo.",
+      "alwaysInclude": false
+    },
+    {
+      "title": "Autossustentabilidade • Ajustes de rotina",
+      "keywords": ["autonomia", "planejamento", "flexibilidade", "prioridades", "check-ins"],
+      "text": "TEXTO LONGO AQUI: como revisar a semana, ajustar objetivos, sinais do corpo/mente, quando buscar ajuda profissional.",
+      "alwaysInclude": false
+    }
+  ],
+  "fallback": "Se o contexto não ajudar, responda com empatia e foco em hábitos sustentáveis, dentro do tema de emagrecimento e saúde mental."
+}
